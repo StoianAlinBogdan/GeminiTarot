@@ -40,10 +40,15 @@ class TarotDeck:
         return name_no_ext.replace('_', ' ').strip()
 
     def draw(self, count):
-        """Returns a random sample of unique cards."""
+        """Returns a random sample of unique cards, each with a reversed flag."""
         if count > len(self.deck):
-            return self.deck # Return all if deck is too small
-        return random.sample(self.deck, count)
+            drawn = self.deck
+        else:
+            drawn = random.sample(self.deck, count)
+        # Add reversed status to each card
+        for card in drawn:
+            card['reversed'] = random.choice([True, False])
+        return drawn
     
 SPREAD_CONFIG = {
     '1 Card': 1,
@@ -53,10 +58,12 @@ SPREAD_CONFIG = {
     'Celtic Cross': 10
 }
 
-def get_card_image_bytes(card_path, size=(200, 300)):
-    """Load and resize card image to bytes for display."""
+def get_card_image_bytes(card_path, reversed=False, size=(200, 300)):
+    """Load and resize card image to bytes for display. Rotate if reversed."""
     try:
         img = Image.open(card_path)
+        if reversed:
+            img = img.rotate(180)
         img = img.resize(size)
         bio = io.BytesIO()
         img.save(bio, format='PNG')
@@ -67,10 +74,13 @@ def get_card_image_bytes(card_path, size=(200, 300)):
 
 def generate_interpretation(cards):
     """Use Gemini to generate a simple tarot reading."""
-    card_names = [card['name'] for card in cards]
-    prompt = f"Provide a brief, positive tarot reading for the following cards: {', '.join(card_names)}. Keep it concise and insightful."
+    card_descriptions = []
+    for card in cards:
+        status = "reversed" if card['reversed'] else "upright"
+        card_descriptions.append(f"{card['name']} ({status})")
+    prompt = f"Provide a tarot reading for the following cards: {', '.join(card_descriptions)}. Provide keywords for each card, explaining first each card, taking into consideration if it is reversed or not, then providing an overall interpretation."
     try:
-        response = client.generate_content(prompt)
+        response = client.models.generate_content(contents=prompt, model="gemini-2.5-flash")
         return response.text
     except Exception as e:
         return f"Error generating interpretation: {e}"
@@ -95,7 +105,7 @@ layout = [
     )],
     [sg.HorizontalSeparator()],
     [sg.Text('Interpretation:')],
-    [sg.Multiline(size=(None, 10), key='-INTERP-', disabled=True)]
+    [sg.Multiline(size=(120, 16), key='-INTERP-', disabled=True)]
 ]
 
 window = sg.Window('Tarot Reader', layout, resizable=True)
@@ -117,11 +127,13 @@ while True:
         
         # Display images
         for i, card in enumerate(drawn_cards):
-            img_bytes = get_card_image_bytes(card['path'])
+            img_bytes = get_card_image_bytes(card['path'], card['reversed'])
             if img_bytes:
                 window[f'-CARD{i}-'].update(data=img_bytes)
         
         # Generate interpretation
-        # TODO
+        window['-INTERP-'].print(f'Generating interpretation for cards: {", ".join([card["name"] for card in drawn_cards])}...\n')
+        interpretation = generate_interpretation(drawn_cards)
+        window['-INTERP-'].print(interpretation)
 
 window.close()
