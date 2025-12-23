@@ -78,7 +78,7 @@ def generate_interpretation(cards):
     for card in cards:
         status = "reversed" if card['reversed'] else "upright"
         card_descriptions.append(f"{card['name']} ({status})")
-    prompt = f"Provide a tarot reading for the following cards: {', '.join(card_descriptions)}. Provide keywords for each card, explaining first each card, taking into consideration if it is reversed or not, then providing an overall interpretation."
+    prompt = f"Provide a tarot reading for the following cards: {', '.join(card_descriptions)}. Provide keywords for each card, explaining first each card, taking into consideration if it is reversed or not, then providing an overall interpretation. If there's a lot of cards, try to be brief."
     try:
         response = client.models.generate_content(contents=prompt, model="gemini-2.5-flash")
         return response.text
@@ -117,6 +117,7 @@ while True:
     if event == sg.WINDOW_CLOSED or event == 'Exit':
         break
     if event == 'Draw Cards':
+        window['-INTERP-'].update('')
         spread = values['-SPREAD-']
         count = SPREAD_CONFIG[spread]
         drawn_cards = deck.draw(count)
