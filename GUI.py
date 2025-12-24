@@ -5,9 +5,13 @@ from PIL import Image
 import io
 import google.genai as genai
 
-# Configure Gemini (replace with your API key setup)
-# In powershell: $env:GOOGLE_API_KEY =  'APIKEY'
-client = genai.Client(api_key=os.getenv('GOOGLE_API_KEY'))  # Set your key in environment
+api_key = sg.popup_get_text('Enter your Google API Key:', title='API Key Required')
+if not api_key:
+    sg.popup('API Key is required. Exiting.')
+    exit()
+
+# Configure Gemini
+client = genai.Client(api_key=api_key)
 
 class TarotDeck:
     def __init__(self, base_path='resources'):
